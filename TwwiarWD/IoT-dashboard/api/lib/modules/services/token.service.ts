@@ -1,58 +1,50 @@
 import jwt from 'jsonwebtoken';
-import  TokenModel  from '../schemas/token.schema';
-import {config} from '../../config';
+import mongoose from 'mongoose';
+import TokenModel from '../schemas/token.schema';
+import { config } from '../../config';
 
 class TokenService {
     public async create(user: any) {
-        const access = 'auth';
         const userData = {
-            userId: user.id,
-            name: user.email,
+            userId: user._id ,
+            name: user.name,
+            email: user.email,
             role: user.role,
             isAdmin: user.isAdmin,
-            access: access
+            access: 'auth'
         };
 
-        const value = jwt.sign(
-            userData,
-            config.JwtSecret,
-            {
-                expiresIn: '3h'
-            });
+        const value = jwt.sign(userData, config.JwtSecret, { expiresIn: '3h' });
 
-        try {
-            const result = await new TokenModel({
-                userId: user.id,
-                type: 'authorization',
-                value,
-                createDate: new Date().getTime()
-            }).save();
-            if (result) {
-                return result;
-            }
-        } catch (error) {
-            console.error('Wystąpił błąd podczas tworzenia danych:', error);
-            throw new Error('Wystąpił błąd podczas tworzenia danych');
-        }
+        const tokenDoc = new TokenModel({
+            userId: new mongoose.Types.ObjectId(user._id),
+            type: 'authorization',
+            value,
+            createDate: Date.now()
+        });
+
+        return await tokenDoc.save();
     }
 
     public getToken(token: any) {
-        return {token: token.value};
+        return { token: token.value };
     }
+
+
     public async remove(userId: string) {
         try {
-            const result = await TokenModel.deleteOne({ userId: userId });
-
-            if (result.deletedCount === 0) {
-                throw new Error('Wystąpił błąd podczas usuwania danych');
-            }
-            return result;
+            const objectId = new mongoose.Types.ObjectId(userId);
+            return await TokenModel.deleteOne({ userId: objectId });
         } catch (error) {
-            console.error('Error while removing token:', error);
-            throw new Error('Error while removing token');
+            console.error('Błąd usuwania tokenu:', error.message);
+            throw new Error('Nieprawidłowy userId');
         }
+    }
+
+    public async removeExpiredTokens() {
+        const HourAgo = Date.now() -  60 * 60 * 1000;
+        return await TokenModel.deleteMany({ createDate: { $lt: HourAgo } });
     }
 }
 
 export default TokenService;
-

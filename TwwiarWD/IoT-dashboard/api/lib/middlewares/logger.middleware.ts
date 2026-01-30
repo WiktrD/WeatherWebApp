@@ -1,7 +1,18 @@
 import { RequestHandler, Request, Response, NextFunction } from 'express';
-import { config } from "../config";
 
 export const log: RequestHandler = (request: Request, response: Response, next: NextFunction) => {
-    console.log(`[${request.method} ${request.url} ${new Date().toISOString()}]`);
+    const start = Date.now();
+
+    response.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(
+            `[HTTP ${request.method}]` +
+            ` ${request.originalUrl}` +
+            ` → Status: ${response.statusCode}` +
+            ` | Duration: ${duration}ms` +
+            ` | Time: ${new Date().toISOString()}`
+        );
+    });
+
     next();
 };

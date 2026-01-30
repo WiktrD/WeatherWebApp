@@ -1,32 +1,41 @@
-import  UserModel  from '../schemas/user.schema';
+import  UserModel from '../schemas/user.schema';
 import {IUser} from "../models/user.model";
+import {HydratedDocument} from "mongoose";
+
 
 class UserService {
     public async createNewOrUpdate(user: IUser) {
-
         try {
+            if (user.role === 'admin') {
+                user.isAdmin = true;
+            }
+
             if (!user._id) {
+                const existingUser = await UserModel.findOne({ email: user.email });
+                if (existingUser) {
+                    throw new Error('Użytkownik z tym adresem e-mail już istnieje.');
+                }
+
                 const dataModel = new UserModel(user);
                 return await dataModel.save();
             } else {
                 return await UserModel.findByIdAndUpdate(user._id, { $set: user }, { new: true });
             }
-        } catch (error) {
-            console.error('Wystąpił błąd podczas tworzenia danych:', error);
-            throw new Error('Wystąpił błąd podczas tworzenia danych');
+        } catch (error: any) {
+            console.error('Błąd podczas tworzenia użytkownika:', error.message);
+            throw new Error('Błąd przy tworzeniu użytkownika');
         }
     }
 
-    public async getByEmailOrName(name: string) {
-        try {
-            const result = await UserModel.findOne({ $or: [{ email: name }, { name: name }] });
-            if (result) {
-                return result;
-            }
-        } catch (error) {
-            console.error('Wystąpił błąd podczas pobierania danych:', error);
-            throw new Error('Wystąpił błąd podczas pobierania danych');
-        }
+
+    public async getByEmailOrName(name: string): Promise<HydratedDocument<IUser> | null> {
+        return await UserModel.findOne({
+            $or: [{ email: name }, { name: name }]
+        });
+    }
+
+    public async getAllUsers() {
+        return await UserModel.find({});
     }
 }
 

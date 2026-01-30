@@ -1,5 +1,6 @@
-import { Schema, model } from 'mongoose';
+import {Schema, model} from 'mongoose';
 import {IUser} from "../models/user.model";
+
 
 const UserSchema = new Schema<IUser>({
     email: { type: String, required: true, unique: true },
@@ -9,4 +10,4 @@ const UserSchema = new Schema<IUser>({
     isAdmin: { type: Boolean, default: true }
 });
 
-export default model<IUser>('User', UserSchema)
+export default model<IUser>('User', UserSchema);

@@ -3,14 +3,16 @@ import morgan from 'morgan';
 import express from 'express';
 import { config } from './config';
 import Controller from "./interfaces/controllerInterface"
-import * as mongoose from "mongoose";
-class App { public app: express.Application;
+import  mongoose from "mongoose";
+import {log} from "./middlewares/logger.middleware";
+class App {
+    public app: express.Application;
 
     constructor(controllers: Controller[]) {
         this.app = express();
         this.initializeMiddlewares();
         this.initializeControllers(controllers);
-        this.connectToDatabase()
+        this.connectToDatabase();
     }
 
     private initializeControllers(controllers: Controller[]): void {
@@ -19,17 +21,30 @@ class App { public app: express.Application;
         });
     }
 
+
+
     public listen(): void {
         this.app.listen(config.port, () => {
             console.log(`App listening on the port ${config.port}`);
         });
     }
+
+
     private initializeMiddlewares(): void {
+        this.app.use((req, res, next) => {
+            res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+            next();
+        });
+        this.app.use(express.json());
         this.app.use(bodyParser.json());
-        this.app.use(morgan('dev'));
+        //this.app.use(morgan('dev'));
+        this.app.use(log);
     }
 
-    private async connectToDatabase(): Promise<void> {
+    async connectToDatabase(): Promise<void> {
         try {
             await mongoose.connect(config.databaseUrl);
             console.log('Connection with database established');
@@ -57,7 +72,8 @@ class App { public app: express.Application;
             process.exit(0);
         });
     }
+    }
 
-}
+
 
 export default App;

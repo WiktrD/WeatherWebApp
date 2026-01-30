@@ -4,24 +4,26 @@ import { config } from '../config';
 import { IUser } from "../modules/models/user.model";
 
 export const auth = (request: Request, response: Response, next: NextFunction) => {
-    let token = request.headers['x-access-token'] || request.headers['authorization'];
+    let token = request.headers['x-auth-token'] || request.headers['authorization'];
     if (token && typeof token === 'string') {
         if (token.startsWith('Bearer ')) {
             token = token.slice(7, token.length);
         }
+
         try {
-            jwt.verify(token, config.JwtSecret, (err, decoded) => {
-                if (err) {
-                    return response.status(400).send('Invalid token.');
-                }
-                const user: IUser = decoded as IUser;
-                next();
-                return;
-            });
-        } catch (ex) {
-            return response.status(400).send('Invalid token.');
+            const decoded = jwt.verify(token, config.JwtSecret) as IUser;
+
+            if (!decoded.role) {
+                console.warn('Brak roli w tokenie');
+            }
+
+            (request as any).user = decoded;
+            next();
+        } catch (err: any) {
+            console.error('Błąd JWT:', err.message);
+            response.status(400).send('Nieprawidłowy token.');
         }
     } else {
-        return response.status(401).send('Access denied. No token provided.');
+        return response.status(401).send('Brak tokenu. Dostęp zabroniony.');
     }
 };

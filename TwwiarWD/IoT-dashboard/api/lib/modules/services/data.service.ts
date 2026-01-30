@@ -1,5 +1,5 @@
 import DataModel from '../schemas/data.schema';
-import {IData, Query} from "../models/data.model";
+import {IData} from "../models/data.model";
 
 export default class DataService {
 
@@ -13,61 +13,73 @@ export default class DataService {
         }
     }
 
-    public async query(deviceID: string) {
+    public async query(deviceId: string) {
         try {
-            const data = await DataModel.find({deviceId: deviceID}, { __v: 0, _id: 0 });
-            return data;
+            return await DataModel.find({deviceId: deviceId}, {__v: 0, _id: 0});
         } catch (error) {
             throw new Error(`Query failed: ${error}`);
         }
     }
-    public async get(deviceID: string){
-        const limit=1;
-       try{
-        const data = await  DataModel.find({deviceID:deviceID},{__v:0,_id:0}).limit(limit).sort({$natural:-1})
-        return data;
-       }
-        catch (error){
-            throw new Error(`Query failed: ${error}`);
-
-        }
-    }
-    public async getAllNewest(){
-        let latestData;
+    public async get(deviceId: number){
         try {
-            const data = await Promise.all(
-                Array.from({length: 17}, async (_, i) => {
-                    try {
-                        const latestEntry = await DataModel.find({deviceId: i}, {
-                            __v: 0,
-                            _id: 0
-                        }).limit(1).sort({$natural: -1});
-                        // console.log(latestEntry)
-                        if (latestEntry.length) {
-                            latestData.push(latestEntry[0]);
-                        } else {
-                            latestData.push({deviceId: i});
-                        }
-                    } catch (error) {
-                        console.error(`Błąd podczas pobierania danych dla urządzenia ${i + 1}: ${error.message}`);
-                        latestData.push({});
+            return await DataModel
+                .find({ deviceId }, { __v: 0, _id: 0 })
+                .limit(1)
+                .sort({ $natural: -1 });
+        } catch (error) {
+            throw new Error(`Failed to get latest data for device ${deviceId}: ${error}`);
+        }
+    }
+    public async getAllNewest(devicesCount: number) {
+        const latestData: any[] = [];
+
+        await Promise.all(
+            Array.from({ length: devicesCount }, async (_, i) => {
+                try {
+                    const latestEntry = await DataModel
+                        .find({ deviceId: i }, { __v: 0, _id: 0 })
+                        .limit(1)
+                        .sort({ $natural: -1 });
+
+                    if (latestEntry.length) {
+                        latestData.push(latestEntry[0]);
+                    } else {
+                        latestData.push({ deviceId: i });
                     }
-                })
-            );
+                } catch (error) {
+                    console.error(`Błąd podczas pobierania danych dla urządzenia ${i}: ${error.message}`);
+                    latestData.push({});
+                }
+            })
+        );
 
-        }
-        catch(error){
-            throw new Error(`Query failed: ${error}`);
+        return latestData;
+    }
+    public async deleteData(deviceId: number) {
+        try {
+            return await DataModel.deleteMany({ deviceId });
+        } catch (error) {
+            throw new Error(`Failed to delete data for device ${deviceId}: ${error}`);
         }
     }
-    public async deleteData (deviceID: string){
-        try{
-            await DataModel.deleteMany({deviceID:deviceID});
-        }
-        catch (error){
-            throw new Error(`Query failed: ${error}`);
 
+    public async deleteReadingsInRange(deviceId: number, from: Date, to: Date): Promise<number> {
+        try {
+            const result = await DataModel.deleteMany({
+                deviceId,
+                readingDate: {
+                    $gte: from,
+                    $lte: to
+                }
+            });
+
+            return result.deletedCount || 0;
+        } catch (error) {
+            console.error(`Błąd podczas usuwania odczytów w zakresie czasu: ${error}`);
+            throw new Error('Nie udało się usunąć danych z podanego zakresu.');
         }
     }
+
+
 
 }

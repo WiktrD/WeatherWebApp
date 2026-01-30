@@ -1,31 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
-import { IUser } from "../modules/models/user.model";
+import { IUser } from '../modules/models/user.model';
 
-export const admin = (request: Request, response: Response, next: NextFunction) => {
-    let token = request.headers['x-access-token'] || request.headers['authorization'];
+export const admin = (req: Request, res: Response, next: NextFunction): void => {
+    let token = req.headers['x-access-token'] || req.headers['authorization'];
+
     if (token && typeof token === 'string') {
         if (token.startsWith('Bearer ')) {
-            token = token.slice(7, token.length);
+            token = token.slice(7);
         }
+
         try {
-            jwt.verify(token, config.JwtSecret, (err, decoded) => {
-                if (err) {
-                    return response.status(400).send('Invalid token.');
-                }
-                const user: IUser = decoded as IUser;
-                if (!user.isAdmin) {
-                    return response.status(403).send('Access denied.');
-                }
-                next();
+            const decoded = jwt.verify(token, config.JwtSecret) as IUser;
+
+            if (!decoded.isAdmin) {
+                res.status(403).send('Dostęp tylko dla administratorów.');
                 return;
-            });
-        } catch (ex) {
-            return response.status(400).send('Invalid token.');
+            }
+
+            (req as any).user = decoded;
+            next();
+        } catch (err) {
+            res.status(400).send('Nieprawidłowy token.');
         }
     } else {
-        return response.status(401).send('Access denied. No token provided.');
+        res.status(401).send('Brak tokenu.');
     }
 };
-
